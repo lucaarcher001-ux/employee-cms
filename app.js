@@ -577,59 +577,47 @@ async function handleOpsCreateUser(e) {
     return;
   }
 
-  const { data: matchingProfiles, error: duplicateCheckError } = await supabaseClient
-    .from('profiles')
-    .select('id')
-    .eq('zk_user_id', zkUserId)
-    .limit(1);
-
-  if (duplicateCheckError) {
-    alert(`Could not verify the ZKBio ID: ${duplicateCheckError.message}`);
-    return;
-  }
-  if (matchingProfiles?.length) {
-    alert('That ZKBio employee ID is already assigned to another profile.');
-    return;
-  }
-
   submitBtn.disabled = true;
   submitBtn.textContent = 'PROVISIONING...';
 
   try {
-    const { data: { session: adminSession } } = await supabaseClient.auth.getSession();
-    const { data: authData, error: authError } = await supabaseClient.auth.signUp({
-      email: email,
-      password: 'password123!',
-      options: {
-        data: {
-          full_name: name,
-          role: role,
-          zk_user_id: zkUserId,
-          base_salary_pkr: salary
-        }
+    const { data, error } = await supabaseClient.functions.invoke('provision-employee', {
+      body: {
+        fullName: name,
+        email,
+        role,
+        baseSalaryPkr: salary,
+        zkUserId
       }
     });
 
-    if (adminSession && authData?.session) {
-      const { error: restoreError } = await supabaseClient.auth.setSession({
-        access_token: adminSession.access_token,
-        refresh_token: adminSession.refresh_token
-      });
-      if (restoreError) throw restoreError;
+    if (error) {
+      let detail = error.message || 'Account invitation failed.';
+      if (error.context instanceof Response) {
+        const responseText = await error.context.clone().text();
+        if (responseText) {
+          try {
+            const responseBody = JSON.parse(responseText);
+            detail = responseBody.error || detail;
+          } catch {
+            detail = responseText.slice(0, 500);
+          }
+        }
+        detail = `HTTP ${error.context.status}: ${detail}`;
+      }
+      throw new Error(detail);
     }
 
-    if (authError) {
-      alert(`Account Provisioning Failed: ${authError.message}`);
-      return;
+    if (!data?.success) {
+      throw new Error(data?.error || 'The account invitation was not confirmed.');
     }
 
-    if (authData?.user) {
-      alert(`Success! Provisioned account for ${name}. Temporary password sent or configured.`);
-      document.getElementById('ops-create-user-form').reset();
-      await loadTeamMatrixData();
-    }
+    alert(`Invitation sent to ${email}. They need to use the invitation email to access the CMS.`);
+    document.getElementById('ops-create-user-form').reset();
+    await loadTeamMatrixData();
   } catch (err) {
-    alert(`System Error: ${err.message}`);
+    console.error('Employee account invitation failed:', err);
+    alert(`Account invitation failed: ${err.message || 'Unknown error'}`);
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = 'PROVISION ACCOUNT';

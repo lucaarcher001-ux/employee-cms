@@ -1,0 +1,8 @@
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.whatsapp-send-reply]
+verify_jwt = true
+
+[functions.provision-employee]
+verify_jwt = true
