@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NAZGROW CMS PORTAL</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+  <!-- ==================================================================== -->
+  <!-- SCREEN 1: AUTHENTICATION / LOGIN GATEWAY (OFFICE IP RESTRICTED) -->
+  <!-- ==================================================================== -->
+  <div id="auth-screen" class="auth-wrapper">
+    <div class="auth-card">
+      <img class="auth-logo" src="black-logo.png" alt="NAZGROW CMS PORTAL">
+      <h1 class="auth-title">NAZGROW CMS PORTAL</h1>
+      <p class="auth-subtitle">Sign in to access Attendance, Sales & Operations</p>
+
+      <div id="login-error"
+        style="display:none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 0.6rem 0.85rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1.25rem;">
+      </div>
+
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label">Employee Email</label>
+          <input type="email" id="login-email" class="form-input" placeholder="you@nazgrow.com" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="login-password" class="form-input" placeholder="••••••••••••" required>
+        </div>
+
+        <button type="submit" class="btn-primary" style="margin-top: 0.5rem;">SIGN IN TO PORTAL</button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ==================================================================== -->
+  <!-- SCREEN 2: AUTHENTICATED PORTALS (ROUTED BY ROLE) -->
+  <!-- ==================================================================== -->
+  <div id="main-app" style="display: none;">
+
+    <!-- Top Navigation Bar -->
+    <header class="top-navbar">
+      <div class="logo-area">
+        <img class="logo-badge" src="black-logo.png" alt="NAZGROW CMS PORTAL">
+        <div class="brand-title">NAZGROW CMS PORTAL</div>
+      </div>
+
+      <!-- Logged In User Profile -->
+      <div class="user-profile-badge">
+        <div class="user-info">
+          <div id="logged-user-name" class="user-name">Alex Miller</div>
+          <div id="logged-user-role" class="user-role-label">Sales Representative</div>
+        </div>
+
+        <!-- Role Router Navigation Tabs -->
+        <div class="role-switcher">
+          <button id="tab-sales" class="role-btn active" onclick="switchPortal('sales')">Employee portal</button>
+          <button id="tab-ops" class="role-btn" onclick="switchPortal('ops')">Operations Workspace</button>
+          <button id="tab-hr" class="role-btn" onclick="switchPortal('hr')">HR & Admin Console</button>
+          <button id="tab-directory" class="role-btn" onclick="switchPortal('directory')" style="display: none;">👥 Employee Directory</button>
+          <button id="tab-recruitment" class="role-btn" onclick="switchPortal('recruitment')" style="display: none;">📄 Recruitment</button>
+        </div>
+
+        <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="container">
+
+      <!-- ========================================== -->
+<!-- 1. SALES REPRESENTATIVE PORTAL             -->
+<!-- ========================================== -->
+<section id="sales-portal" class="portal-section" style="max-width: 1200px; margin: 0 auto; padding: 1rem;">
+  
+  <!-- TOP KPIS GRID (3 EQUAL COLUMNS) -->
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem; width: 100%;">
+
+    <!-- CARD 1: SHIFT / ATTENDANCE STATUS -->
+    <div id="sales-attendance-card" style="background: #ffffff; padding: 1.25rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); min-height: 140px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.85rem; color: #64748b; font-weight: 600;">Most Recent Night Shift</span>
+        <span id="sales-attendance-badge" class="badge" style="background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-size:0.75rem;">SYNCING...</span>
+      </div>
+      <div style="display: flex; gap: 1.5rem; margin: 0.5rem 0;">
+        <div>
+          <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; letter-spacing: 0.03em;">IN</div>
+          <div id="sales-attendance-time-in" style="font-size: 1.35rem; font-weight: 700; color: #0f172a;">-- : --</div>
+        </div>
+        <div>
+          <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; letter-spacing: 0.03em;">OUT</div>
+          <div id="sales-attendance-time-out" style="font-size: 1.35rem; font-weight: 700; color: #0f172a;">-- : --</div>
+        </div>
+      </div>
+      <div id="sales-attendance-label" style="font-size: 0.8rem; color: #64748b; font-weight: 500;">Loading attendance data...</div>
+    </div>  
+
+    
+
+    <!-- CARD 3: PERSONAL INFO CARD -->
+    <div id="personal-info-card" onclick="openPersonalInfoModal()" style="background: #ffffff; padding: 1.25rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; min-height: 140px;">
+      <div style="display: flex; align-items: center; gap: 1rem; height: 100%;">
+        <img id="card-user-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 24 24' fill='%23cbd5e1'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid #cbd5e1; flex-shrink: 0;" />
+        <div style="overflow: hidden;">
+          <span style="font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase;">Personal Info</span>
+          <h4 id="card-user-name" style="margin: 0.2rem 0; font-size: 1.05rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">--</h4>
+          <span id="card-lock-status" style="display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; background: #dcfce7; color: #15803d;">UNLOCKED</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MIDDLE SECTION: LEAD FORM & PIPELINE (2-COLUMN GRID) -->
+  <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 1.5rem; margin-bottom: 2rem; width: 100%;">
+    
+   
+    
+    <!-- RIGHT: MY SUBMITTED LEADS & OPS PIPELINE -->
+    
+
+  </div>
+
+  <!-- SUBMIT ATTENDANCE / LEAVE APPLICATION FORM -->
+  <div class="attendance-application-container" style="margin-top: 24px; padding: 20px; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+    <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 16px; color: #1e293b;">Submit Attendance or Leave Application</h3>
+
+    <form id="attendance-app-form" onsubmit="handleApplicationSubmission(event)">
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-weight: 500; margin-bottom: 4px;">Application Type</label>
+        <select id="app-type" required style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+          <option value="leave">Leave Request</option>
+          <option value="late_regularization">Late Arrival Regularization</option>
+          <option value="missing_punch">Missing Punch Adjustment</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-weight: 500; margin-bottom: 4px;">Target Shift Date</label>
+        <input type="date" id="app-date" required style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-weight: 500; margin-bottom: 4px;">Reason / Explanation</label>
+        <textarea id="app-reason" placeholder="Explain your situation in detail..." required style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; height: 80px; resize: none;"></textarea>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-weight: 500; margin-bottom: 4px;">Upload Supporting Proof (Medical Certificate / Screenshot)</label>
+        <input type="file" id="proof-file" accept="image/*,.pdf" style="width: 100%; padding: 4px;">
+      </div>
+
+      <button type="submit" style="width: 100%; background: #2563eb; color: white; padding: 10px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+        Submit Application to HR
+      </button>
+    </form>
+  </div>
+
+  <!-- TRACKING SUBMITTED APPLICATIONS TABLE -->
+<div class="employee-applications-status-panel" style="margin-top: 20px; padding: 20px; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+  <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 12px; color: #1e293b;">
+    Tracking Your Submitted Applications
+  </h3>
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+      <thead>
+        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b;">
+          <th style="padding: 10px;">Type</th>
+          <th style="padding: 10px;">Target Date</th>
+          <th style="padding: 10px;">Reason</th>
+          <th style="padding: 10px;">Status</th>
+          <th style="padding: 10px;">HR Notes</th>
+        </tr>
+      </thead>
+      <!-- ⬇️ CHANGE ID FROM "employee-apps-status-body" TO "employee-applications-status-body" -->
+      <tbody id="employee-applications-status-body">
+        <tr>
+          <td colspan="5" style="text-align: center; padding: 15px; color: #94a3b8;">
+            Loading application history...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</section>
+
+      <!-- ========================================== -->
+      <!-- 2. OPERATIONS WORKSPACE                    -->
+      <!-- ========================================== -->
+      <!-- ========================================== -->
+      <!-- 2. OPERATIONS WORKSPACE                    -->
+      <!-- ========================================== -->
+      <section id="ops-portal" class="portal-section" style="display: none;">
+        <div class="grid-3">
+          <div class="glass-card">
+            <div class="card-title">Active Leads Queue</div>
+            <div id="ops-active-count" class="stat-value cyan">--</div>
+            <div class="stat-label">Pending Client Contact & Onboarding</div>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-title">SLA Compliance</div>
+            <div id="ops-sla-compliance" class="stat-value green">--</div>
+            <div class="stat-label">Target: Initial Contact &lt; 2 Hours</div>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-title">SLA Breach Alert</div>
+            <div id="ops-breach-count" class="stat-value amber">--</div>
+            <div id="ops-breach-label" class="stat-label">Loading...</div>
+          </div>
+        </div>
+
+        <div class="glass-card" style="margin-bottom: 2rem;">
+          <div class="card-title">Team Lead Queue & SLA Countdown Console</div>
+
+          <div class="table-container">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Client Name</th>
+                  <th>Source Sales Rep</th>
+                  <th>Deal Value</th>
+                  <th>SLA Countdown</th>
+                  <th>Current Stage</th>
+                  <th>Update Status</th>
+                </tr>
+              </thead>
+              <tbody id="ops-queue-body">
+                <tr>
+                  <td colspan="6" style="text-align:center; color: var(--text-muted);">Loading real lead queue...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+<!-- Calendar History View Overlay Portal Modality -->
+<div id="calendar-modal" class="modal-overlay" 
+     style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9999; justify-content: center; align-items: center; overflow-y: auto; padding: 1.5rem;">
+  
+  <div class="glass-card"
+    style="width: 100%; max-width: 650px; border: 1px solid var(--border-color); background: #ffffff; padding: 2rem; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); margin: auto;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+      <div>
+        <h3 id="calendar-modal-title" style="color: #000000; font-size: 1.25rem; font-weight: 700; margin: 0;">Meetings Booked History</h3>
+        <p id="calendar-modal-subtitle" class="text-muted" style="font-size: 0.85rem; margin-top: 0.25rem;"></p>
+      </div>
+      <button class="btn-secondary" style="padding: 0.35rem 0.75rem; cursor: pointer;" onclick="closeCalendarModal()">✕ Close</button>
+    </div>
+
+    <!-- Calendar Matrix Grid Structure -->
+    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; margin-bottom: 1.5rem;">
+      <!-- Mon to Sun Days Headers -->
+      <div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">Mon</div>
+      <div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">Tue</div>
+      <div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">Wed</div>
+      <div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">Thu</div>
+      <div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">Fri</div>
+      <div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">Sat</div>
+      <div style="text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">Sun</div>
+    </div>
+    
+    <div id="calendar-days-container" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem;">
+    </div>
+  </div>
+</div>
+
+<div id="meetings-calendar-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
+  <div style="background: #ffffff; border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; padding: 24px;">
+    
+    <!-- Modal Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
+      <div>
+        <h3 style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 0;">Monthly Booked Meetings</h3>
+        <p id="meetings-calendar-month-title" style="font-size: 13px; color: #64748b; margin: 4px 0 0 0;">Loading month...</p>
+      </div>
+      <button onclick="closeMeetingsCalendarModal()" style="background: transparent; border: none; font-size: 20px; color: #64748b; cursor: pointer; padding: 4px 8px;">✕</button>
+    </div>
+
+    <!-- Calendar Day Headers -->
+    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; font-weight: 600; font-size: 12px; color: #64748b; margin-bottom: 8px;">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+
+    <!-- Calendar Grid -->
+    <div id="meetings-calendar-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;">
+      <!-- Dynamic Day Cells Will Render Here -->
+    </div>
+
+  </div>
+</div>
+
+
+
+      <!-- ========================================== -->
+      <!-- 3. HR & ADMIN CONSOLE                      -->
+      <!-- ========================================== -->
+      <!-- ========================================== -->
+      <!-- 3. HR & ADMIN CONSOLE                      -->
+      <!-- ========================================== -->
+      <section id="hr-portal" class="portal-section" style="display: none;">
+        <div class="grid-3">
+          <div class="glass-card">
+            <div class="card-title">Total Payroll (Selected Month)</div>
+            <div id="hr-total-payroll" class="stat-value green">--</div>
+            <div class="stat-label">Base Salary + USD Sales Incentives</div>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-title">Night Shift Attendance</div>
+            <div id="hr-attendance-pct" class="stat-value cyan">--</div>
+            <div class="stat-label">Shift: 8:00 PM – 5:00 AM</div>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-title">Payroll Status</div>
+            <div id="hr-payroll-status" class="stat-value amber">--</div>
+            <div id="hr-payroll-status-label" class="stat-label">Select a month to view</div>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-title">
+            <span>Monthly Payroll Master Summary</span>
+            <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap: wrap;">
+              <input type="month" id="hr-month-picker" name="hr-month-picker" class="form-input"
+                style="width:auto; padding:0.4rem 0.6rem;" value="2026-07"
+                onchange="if(typeof loadHrPortalData === 'function') loadHrPortalData();">
+              <button type="button" class="btn-secondary" onclick="loadHrPortalData()">View</button>
+              <button type="button" class="btn-secondary" onclick="runPayrollEngine()">Run Payroll Engine</button>
+
+              <div id="payroll-status-badge" class="status-badge unlocked">
+                <span class="badge-icon">🔓</span>
+                <span id="payroll-status-text">UNLOCKED</span>
+              </div>
+
+              <button type="button" id="lock-payroll-btn" class="btn-lock" style="display: inline-block;" onclick="lockPayroll()">
+                Lock Payroll
+              </button>
+
+              <small id="payroll-lock-meta" style="display: none; color: var(--text-muted); font-size: 0.75rem;"></small>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Employee Name</th>
+                  <th>Role</th>
+                  <th>Base (PKR)</th>
+                  <th>LOP Days</th>
+                  <th>Deductions</th>
+                  <th>Net Payable (PKR)</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="hr-payroll-body">
+                <tr>
+                  <td colspan="7" style="text-align:center; color: var(--text-muted);">Select a month and click View</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="hr-applications-panel" style="margin-top: 30px; padding: 24px; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+          <h3>Master Attendance & Regularization Request Log</h3>
+          <table style="width:100%; border-collapse: collapse; margin-top: 15px;">
+            <thead>
+              <tr style="background: #f8fafc; text-align: left; border-bottom: 2px solid #cbd5e1;">
+                <th style="padding: 12px;">Employee</th>
+                <th style="padding: 12px;">Type</th>
+                <th style="padding: 12px;">Target Date</th>
+                <th style="padding: 12px;">Reason Given</th>
+                <th style="padding: 12px;">Proof File</th>
+                <th style="padding: 12px; text-align: center;">Status</th>
+                <th style="padding: 12px; text-align: center;">Action / Resolution</th>
+              </tr>
+            </thead>
+            <tbody id="hr-apps-queue-body">
+              <tr>
+                <td colspan="7" style="text-align:center; padding: 15px; color: #94a3b8;">Loading attendance applications...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Corporate Identity & Compensation Management Card -->
+        <div class="glass-card" style="margin-top: 30px;">
+          <div class="card-title">
+            <div>
+              <h3 style="font-size: 1.25rem; font-weight: 700;">Corporate Identity & Compensation Management</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400; margin-top: 0.25rem;">Provision
+                new accounts, adjust base compensation metrics, and deactivate personnel.</p>
+            </div>
+          </div>
+
+          <!-- Sub-form: Create New Employee -->
+          <form id="ops-create-user-form" onsubmit="handleOpsCreateUser(event)"
+            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border-color);">
+            <div>
+              <label class="form-label">Full Name</label>
+              <input type="text" id="new-user-name" class="form-input" placeholder="e.g. Murtaza" required />
+            </div>
+            <div>
+              <label class="form-label">Email Address</label>
+              <input type="email" id="new-user-email" class="form-input" placeholder="name@nazgrow.com" required />
+            </div>
+            <div>
+              <label class="form-label">System Access Role</label>
+              <select id="new-user-role" class="form-select" required>
+                <option value="sales">Sales Representative</option>
+                <option value="operations">Operations Manager</option>
+                <option value="hr">HR & Payroll Manager</option>
+            
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Base Salary (PKR)</label>
+              <input type="number" id="new-user-salary" class="form-input" placeholder="e.g. 150000" required />
+            </div>
+            <div>
+              <label class="form-label">ZKBio Employee ID</label>
+              <input type="text" id="new-user-zk-id" class="form-input" placeholder="e.g. 47" inputmode="numeric" pattern="[0-9]+" title="Enter the numeric employee ID from ZKBio." required />
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+              <button type="submit" class="btn-primary" style="height: 45px; padding: 0;">PROVISION ACCOUNT</button>
+            </div>
+          </form>
+
+          <!-- Dynamic Active Team Matrix Table -->
+          <div class="table-container">
+            <table class="custom-table team-matrix-table">
+              <thead>
+                <tr>
+                  <th>Employee Name</th>  
+                  <th>Email</th>
+                  <th>System Role</th>
+                  <th>ZKBio ID</th>
+                  <th>Base Compensation</th>
+                  <th>Administrative Actions</th>
+                </tr>
+              </thead>
+              <tbody id="ops-team-matrix-body">
+                <tr>
+                  <td colspan="6" style="text-align:center; color: var(--text-muted);">Loading team roster...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- 4. EMPLOYEE DIRECTORY PORTAL               -->
+      <!-- ========================================== -->
+      <section id="directory-portal" class="portal-section" style="display: none;">
+        <div class="glass-card">
+          <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3>👥 Employee Directory</h3>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" id="directory-search" class="form-input" placeholder="Search staff..." onkeyup="filterEmployeeDirectory()">
+              <button id="view-btn-grid" class="btn-secondary" onclick="toggleDirectoryView('grid')">Grid</button>
+              <button id="view-btn-table" class="btn-secondary" onclick="toggleDirectoryView('table')">Table</button>
+            </div>
+          </div>
+
+          <div id="directory-grid-view" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem;">
+          </div>
+
+          <div id="directory-table-view" style="display: none; margin-top: 1rem;">
+            <table class="custom-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="directory-table-body">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+<!-- ========================================== -->
+<!-- 4. EMPLOYEE DIRECTORY PORTAL              -->
+<!-- ========================================== -->
+<section id="directory-portal" class="portal-section" style="display: none; padding: 1.5rem;">
+  <!-- Header & Toolbar -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <h2 style="margin: 0; color: #0f172a;">Employee Directory</h2>
+      <p style="color: #64748b; margin-top: 0.25rem; font-size: 0.9rem;">Browse and inspect employee profiles across all departments.</p>
+    </div>
+    
+    <!-- Search, Filter & View Controls -->
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+      <input type="text" id="directory-search" class="form-input" placeholder="Search by name or email..." oninput="filterEmployeeDirectory()" style="width: 240px; padding: 6px 10px;">
+      
+      <select id="directory-role-filter" class="form-select" onchange="filterEmployeeDirectory()" style="width: 150px; padding: 6px 10px;">
+        <option value="all">All Roles</option>
+        <option value="sales">Sales</option>
+        <option value="operations">Operations</option>
+        <option value="hr">HR</option>
+        <option value="admin">Admin</option>
+      </select>
+
+      <div style="display: flex; background: #e2e8f0; border-radius: 6px; padding: 2px;">
+        <button id="view-btn-grid" class="btn-secondary" style="padding: 0.3rem 0.75rem; border: none; background: #ffffff; cursor: pointer;" onclick="toggleDirectoryView('grid')">Grid</button>
+        <button id="view-btn-table" class="btn-secondary" style="padding: 0.3rem 0.75rem; border: none; background: transparent; cursor: pointer;" onclick="toggleDirectoryView('table')">Table</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grid View Container -->
+  <div id="directory-grid-view" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem;">
+    <!-- Dynamic Employee Cards Rendered Here -->
+  </div>
+
+  <!-- Table View Container -->
+  <div id="directory-table-view" style="display: none; overflow-x: auto; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+      <thead style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+        <tr>
+          <th style="padding: 12px; color: #64748b;">Employee</th>
+          <th style="padding: 12px; color: #64748b;">Email</th>
+          <th style="padding: 12px; color: #64748b;">Role</th>
+          <th style="padding: 12px; color: #64748b; text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="directory-table-body">
+        <!-- Dynamic Employee Rows Rendered Here -->
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+      <!-- ========================================== -->
+      <!-- 5. RECRUITMENT (CANDIDATES) — HR/ADMIN ONLY -->
+      <!-- ========================================== -->
+      <section id="recruitment-portal" class="portal-section" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <h2 style="margin: 0; color: #0f172a;">Recruitment</h2>
+            <p style="color: #64748b; margin-top: 0.25rem; font-size: 0.9rem;">CVs received on the business WhatsApp number, newest first.</p>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+            <input type="text" id="candidates-search" class="form-input" placeholder="Search name, phone, skills..." oninput="filterCandidates()" style="width: 240px; padding: 6px 10px;">
+            <select id="candidates-status-filter" class="form-select" onchange="filterCandidates()" style="width: 150px; padding: 6px 10px;">
+              <option value="all">All Statuses</option>
+              <option value="new">New</option>
+              <option value="shortlisted">Shortlisted</option>
+              <option value="interview">Interview</option>
+              <option value="rescheduled">Rescheduled</option>
+              <option value="hired">Hired</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select id="candidates-role-filter" class="form-select" onchange="filterCandidates()" style="width: 170px; padding: 6px 10px;">
+              <option value="all">All Roles</option>
+              <option value="Sales">Sales</option>
+              <option value="Account Manager">Account Manager</option>
+              <option value="Designer">Designer</option>
+              <option value="Developer">Developer</option>
+              <option value="HR">HR</option>
+              <option value="__none__">No role set</option>
+            </select>
+            <button type="button" class="btn-secondary" onclick="loadCandidatesData()">Refresh</button>
+          </div>
+        </div>
+
+        <div id="candidates-counts" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;"></div>
+
+        <div id="candidates-message" role="status" style="display: none; padding: 0.6rem 0.85rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem;"></div>
+
+        <div class="glass-card">
+          <div class="table-container">
+            <table class="custom-table candidates-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>Role</th>
+                  <th>Skills</th>
+                  <th>Status</th>
+                  <th>CV File</th>
+                  <th>Received (PKT)</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="candidates-table-body">
+                <tr>
+                  <td colspan="8" style="text-align:center; color: var(--text-muted);">Loading candidates...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: center; margin-top: 1rem;">
+          <button id="candidates-load-more" type="button" class="btn-secondary" onclick="loadMoreCandidates()" style="display: none;">Load More</button>
+        </div>
+      </section>
+
+  </main>
+  </div>
+
+  <!-- PERSONAL INFO MODAL -->
+  <div id="personal-info-modal" class="modal-overlay"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:999; justify-content:center; align-items:center;">
+    <div
+      style="background: white; padding: 2rem; border-radius: 12px; width: 600px; max-width: 90%; max-height: 90vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 id="personal-info-modal-title">Personal Profile Details</h3>
+        <button onclick="closePersonalInfoModal()"
+          style="border:none; background:none; font-size: 1.2rem; cursor:pointer;">✕</button>
+      </div>
+
+      <div id="profile-lock-warning"
+        style="display:none; background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem;">
+        🔒 Profile Details Locked. Contact <strong>Operations</strong> to request changes.
+      </div>
+
+      <form id="personal-info-form" onsubmit="savePersonalProfile(event)">
+        <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='%23cbd5e1'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>" ... />
+          <div id="avatar-input-container">
+            <label style="font-size: 0.8rem; font-weight: 600;">Profile Picture</label>
+            <input type="file" id="profile-avatar-input" accept="image/*" class="form-input" />
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <label style="font-size: 0.8rem;">Full Name</label>
+            <input type="text" id="prof-name" class="form-input" required />
+          </div>
+          <div>
+            <label style="font-size: 0.8rem;">Email Address</label>
+            <input type="email" id="prof-email" class="form-input" disabled />
+          </div>
+          <div>
+            <label style="font-size: 0.8rem;">Landline/Phone Number</label>
+            <input type="text" id="prof-phone" class="form-input" />
+          </div>
+          <div>
+            <label style="font-size: 0.8rem;">Mobile Number</label>
+            <input type="text" id="prof-mobile" class="form-input" required />
+          </div>
+          <div>
+            <label style="font-size: 0.8rem;">Date of Birth</label>
+            <input type="date" id="prof-dob" class="form-input" required />
+          </div>
+          <div>
+            <label style="font-size: 0.8rem;">Full Address</label>
+            <input type="text" id="prof-address" class="form-input" required />
+          </div>
+        </div>
+
+        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #e2e8f0;" />
+
+        <div id="document-upload-section">
+          <h4 style="margin-bottom: 0.5rem;">Document Attachments</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+              <label style="font-size: 0.8rem;">Education Certificates</label>
+              <input type="file" id="doc-education" accept=".pdf,.png,.jpg,.jpeg" class="form-input" />
+            </div>
+            <div>
+              <label style="font-size: 0.8rem;">National Identity card</label>
+              <input type="file" id="doc-course" accept=".pdf,.png,.jpg,.jpeg" class="form-input" />
+            </div>
+            <div>
+              <label style="font-size: 0.8rem;">Last Salary Slip</label>
+              <input type="file" id="doc-salary-slip" accept=".pdf,image/*" class="form-input" />
+            </div>
+            <div>
+              <label style="font-size: 0.8rem;">Probation Letter</label>
+              <input type="file" id="doc-probation-letter" accept=".pdf,image/*" class="form-input" />
+            </div>
+            <div>
+              <label style="font-size: 0.8rem;">Utility Bill</label>
+              <input type="file" id="doc-utility-bill" accept=".pdf,image/*" class="form-input" />
+            </div>
+            <div>
+              <label style="font-size: 0.8rem;">Confirmation Letter</label>
+              <input type="file" id="doc-confirmation-letter" accept=".pdf,image/*" class="form-input" />
+            </div>
+            <div>
+              <label style="font-size: 0.8rem;">Warning Letter</label>
+              <input type="file" id="doc-warning-letter" accept=".pdf,image/*" class="form-input" />
+            </div>
+          </div>
+        </div>
+
+        <div id="uploaded-docs-list" style="margin-bottom: 1.5rem;">
+          <!-- Uploaded items list renders here -->
+        </div>
+
+        <button type="submit" id="save-profile-btn" class="btn-primary" style="width: 100%;">Save Profile & Lock
+          Changes</button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+<!-- FULL EMPLOYEE PROFILE MODAL                -->
+<!-- ========================================== -->
+<div id="employee-profile-modal" class="modal-overlay" style="display: none;">
+  <div class="modal-card profile-modal-card">
+    <div class="modal-header">
+      <div class="user-header-info">
+        <img id="modal-emp-avatar" src="" alt="Avatar" class="avatar-circle-lg">
+        <div>
+          <h2 id="modal-emp-name" style="margin: 0;">Employee Name</h2>
+          <span id="modal-emp-role" class="role-badge">ROLE</span>
+          <p id="modal-emp-email" style="margin: 4px 0 0; color: var(--text-muted); font-size: 0.85rem;"></p>
+        </div>
+      </div>
+      <button type="button" class="btn-close" onclick="closeEmployeeProfileModal()">✕</button>
+    </div>
+
+    <!-- Modal Navigation Tabs -->
+    <div class="modal-tabs">
+      <button class="tab-btn active" onclick="switchProfileTab('info')">📋 Profile Info</button>
+      <button class="tab-btn" onclick="switchProfileTab('attendance')">📅 Attendance Log</button>
+      <button class="tab-btn" onclick="switchProfileTab('payroll')">💼 Payroll & Compensation</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Tab 1: Profile Details -->
+      <div id="tab-content-info" class="profile-tab-content active">
+        <div class="grid-2">
+          <div class="info-group">
+            <label>Full Name</label>
+            <div id="profile-detail-name" class="detail-value">--</div>
+          </div>
+          <div class="info-group">
+            <label>Email Address</label>
+            <div id="profile-detail-email" class="detail-value">--</div>
+          </div>
+          <div class="info-group">
+            <label>Phone Number</label>
+            <div id="profile-detail-phone" class="detail-value">--</div>
+          </div>
+          <div class="info-group">
+            <label>Department / Role</label>
+            <div id="profile-detail-role" class="detail-value">--</div>
+          </div>
+          <div class="info-group">
+            <label>Joining Date</label>
+            <div id="profile-detail-join-date" class="detail-value">--</div>
+          </div>
+          <div class="info-group">
+            <label>Employment Status</label>
+            <div id="profile-detail-status" class="detail-value"><span class="badge-active">Active</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Attendance Calendar -->
+      <div id="tab-content-attendance" class="profile-tab-content" style="display: none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+          <h4 style="margin:0;">Attendance History</h4>
+          <input type="month" id="profile-attendance-month" class="form-input" style="width:auto;" onchange="loadEmployeeAttendanceTab()">
+        </div>
+        <div id="profile-attendance-calendar-grid" class="calendar-grid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Tab 3: Payroll Summary -->
+      <div id="tab-content-payroll" class="profile-tab-content" style="display: none;">
+        <div class="grid-2">
+          <div class="glass-card">
+            <div class="card-title">Base Salary</div>
+            <div id="profile-base-salary" class="stat-value green">PKR --</div>
+          </div>
+          <div class="glass-card">
+            <div class="card-title">Bank / Payout Details</div>
+            <div id="profile-bank-info" class="detail-value" style="margin-top: 8px;">Account ending in ****</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- CANDIDATE EDIT MODAL -->
+  <div id="candidate-edit-modal" class="modal-overlay"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:999; justify-content:center; align-items:center;">
+    <div style="background: white; padding: 2rem; border-radius: 12px; width: 460px; max-width: 90%; max-height: 90vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">Edit Candidate</h3>
+        <button type="button" onclick="closeCandidateEditModal()"
+          style="border:none; background:none; font-size: 1.2rem; cursor:pointer;">✕</button>
+      </div>
+
+      <form id="candidate-edit-form" onsubmit="saveCandidateEdit(event)">
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.8rem;">Full Name</label>
+          <input type="text" id="cand-edit-name" class="form-input" required />
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.8rem;">Email</label>
+          <input type="email" id="cand-edit-email" class="form-input" />
+        </div>
+        <div style="margin-bottom: 1.25rem;">
+          <label style="font-size: 0.8rem;">Primary Skills (comma separated)</label>
+          <input type="text" id="cand-edit-skills" class="form-input" placeholder="e.g. Sales, Cold Calling, CRM" />
+        </div>
+        <div style="margin-bottom: 1.25rem;">
+          <label style="font-size: 0.8rem;" for="cand-edit-hr-comments">Comments for hiring and rejection</label>
+          <textarea id="cand-edit-hr-comments" class="form-input" rows="3"
+            placeholder="Add the reason for hiring or rejection"></textarea>
+        </div>
+        <button type="submit" id="cand-edit-save-btn" class="btn-primary" style="width: 100%;">Save Changes</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- CANDIDATE WHATSAPP CHAT -->
+  <div id="candidate-chat-modal" class="modal-overlay candidate-chat-overlay"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; justify-content:center; align-items:center; padding:1rem;">
+    <section class="candidate-chat-panel" role="dialog" aria-modal="true" aria-labelledby="candidate-chat-title">
+      <header class="candidate-chat-header">
+        <div>
+          <h3 id="candidate-chat-title">WhatsApp Chat</h3>
+          <div id="candidate-chat-subtitle"></div>
+        </div>
+        <div class="candidate-chat-header-actions">
+          <button type="button" class="btn-secondary" onclick="loadCandidateChat()">Refresh</button>
+          <button type="button" class="btn-secondary" aria-label="Close chat" onclick="closeCandidateChat()">✕</button>
+        </div>
+      </header>
+      <button id="candidate-chat-load-older" type="button" class="btn-secondary" onclick="loadOlderCandidateChat()" style="display:none; align-self:center; margin:0.5rem;">
+        Load earlier messages
+      </button>
+      <div id="candidate-chat-messages" class="candidate-chat-messages" aria-live="polite">
+        <p class="candidate-chat-state">Select a candidate to load messages.</p>
+      </div>
+      <form id="candidate-chat-reply-form" class="candidate-chat-reply" onsubmit="sendCandidateChatReply(event)">
+        <textarea id="candidate-chat-reply-input" class="form-input" rows="2" maxlength="4096"
+          placeholder="Write a WhatsApp reply..." aria-label="WhatsApp reply" required></textarea>
+        <button id="candidate-chat-send-btn" type="submit" class="btn-primary">Send</button>
+      </form>
+      <div id="candidate-chat-error" class="candidate-chat-error" role="status" style="display:none;"></div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
