@@ -121,29 +121,34 @@ Deno.serve(async (request: Request): Promise<Response> => {
       }, 409);
     }
 
-    const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-      email,
-      {
-        data: {
+    const { data: createdUser, error: createError } = await supabase.auth.admin
+      .createUser({
+        email,
+        password: requiredEnv("INITIAL_EMPLOYEE_PASSWORD"),
+        email_confirm: true,
+        user_metadata: {
           full_name: fullName,
           role,
           zk_user_id: zkUserId,
           base_salary_pkr: baseSalaryPkr,
         },
-      },
-    );
-    if (inviteError) {
+      });
+    if (createError) {
       const alreadyExists = /already|registered|exists/i.test(
-        inviteError.message,
+        createError.message,
       );
       return jsonResponse(
         {
           error: alreadyExists
             ? "An account already exists for that email address."
-            : inviteError.message,
+            : createError.message,
         },
         alreadyExists ? 409 : 400,
       );
+    }
+
+    if (!createdUser.user) {
+      throw new Error("Supabase Auth did not return the created user.");
     }
 
     return jsonResponse({ success: true }, 200);

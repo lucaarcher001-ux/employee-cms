@@ -612,7 +612,7 @@ async function handleOpsCreateUser(e) {
       throw new Error(data?.error || 'The account invitation was not confirmed.');
     }
 
-    alert(`Invitation sent to ${email}. They need to use the invitation email to access the CMS.`);
+    alert(`Account created for ${email}. Use the configured initial password to sign in.`);
     document.getElementById('ops-create-user-form').reset();
     await loadTeamMatrixData();
   } catch (err) {
