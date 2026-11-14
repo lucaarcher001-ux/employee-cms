@@ -1075,18 +1075,48 @@ async function uploadDocIfPresent(inputId, docType, targetId) {
     });
   if (upErr) throw upErr;
 
-  const { data: pubUrl } = supabaseClient.storage.from('employee-certificates').getPublicUrl(path);
-
   const { error: documentError } = await supabaseClient.from('employee_documents').insert({
     user_id: employeeId,
     document_type: docType,
     document_name: file.name,
-    file_url: pubUrl.publicUrl
+    file_url: path // storage path inside the private 'employee-certificates' bucket
   });
   if (documentError) {
     await supabaseClient.storage.from('employee-certificates').remove([path]);
     throw documentError;
   }
+}
+
+// Opens a file from a PRIVATE storage bucket through a short-lived signed link.
+// The tab is opened inside the click so pop-up blockers allow it.
+async function openPrivateFile(bucket, path) {
+  const win = window.open('about:blank', '_blank');
+  if (win) win.opener = null;
+
+  const { data, error } = await supabaseClient.storage.from(bucket).createSignedUrl(path, 120);
+  if (error || !data?.signedUrl) {
+    if (win) win.close();
+    alert('Could not open file: ' + (error?.message || 'no URL returned'));
+    return;
+  }
+  if (win) {
+    win.location.href = data.signedUrl;
+  } else {
+    alert('Your browser blocked the new tab. Allow pop-ups for this site and try again.');
+  }
+}
+
+// Builds a safe inline onclick that opens a private file.
+function privateFileLinkHtml(bucket, path, label, extraStyle = '') {
+  const safePath = encodeURIComponent(path).replace(/'/g, '%27');
+  return `<a href="#" style="${extraStyle}" onclick="openPrivateFile('${bucket}', decodeURIComponent('${safePath}')); return false;">${label}</a>`;
+}
+
+// Older rows may hold a full public URL; reduce those to the storage path.
+function documentStoragePath(fileUrl) {
+  const marker = '/employee-certificates/';
+  const index = String(fileUrl || '').indexOf(marker);
+  return index === -1 ? String(fileUrl || '') : decodeURIComponent(fileUrl.slice(index + marker.length).split('?')[0]);
 }
 
 async function loadUserDocuments(targetId) {
@@ -1103,7 +1133,7 @@ async function loadUserDocuments(targetId) {
   }
 
   container.innerHTML = '<strong>Uploaded Assets:</strong><ul style="font-size: 0.85rem; padding-left: 1.2rem;">' +
-    docs.map(d => `<li><a href="${d.file_url}" target="_blank">${escapeHtml(d.document_name)}</a> (${d.document_type.toUpperCase()})</li>`).join('') +
+    docs.map(d => `<li>${privateFileLinkHtml('employee-certificates', documentStoragePath(d.file_url), escapeHtml(d.document_name))} (${escapeHtml(String(d.document_type || '').toUpperCase())})</li>`).join('') +
     '</ul>';
 }
 
@@ -2007,13 +2037,12 @@ async function loadHrAttendanceApplicationsQueue() {
       // Generate attachment link
       let proofLinkHtml = '<span style="color:#94a3b8;">No Proof Provided</span>';
       if (app.proof_attachment_url) {
-        const { data: publicUrlData } = supabaseClient.storage
-          .from('regularization-proofs')
-          .getPublicUrl(app.proof_attachment_url);
-
-        if (publicUrlData?.publicUrl) {
-          proofLinkHtml = `<a href="${publicUrlData.publicUrl}" target="_blank" style="color: #2563eb; font-weight: 500; text-decoration: underline;">View Asset ↗</a>`;
-        }
+        proofLinkHtml = privateFileLinkHtml(
+          'regularization-proofs',
+          app.proof_attachment_url,
+          'View Asset ↗',
+          'color: #2563eb; font-weight: 500; text-decoration: underline;'
+        );
       }
 
       // Configure badge colors dynamically based on actual status
