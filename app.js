@@ -2805,6 +2805,8 @@ function openCandidateChat(candidateId) {
   candidateChatOlderLoading = false;
   updateCandidateChatLoadOlderButton();
   candidateChatId = candidateId;
+  document.getElementById('candidate-chat-messages').innerHTML =
+    '<p class="candidate-chat-state">Loading chat history...</p>';
   document.getElementById('candidate-chat-title').textContent = candidate.full_name || 'Candidate';
   document.getElementById('candidate-chat-subtitle').textContent = candidate.phone_number || '';
   document.getElementById('candidate-chat-modal').style.display = 'flex';
