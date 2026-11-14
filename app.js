@@ -4,8 +4,8 @@
  */
 
 // ⚠️ PASTE YOUR VALUES HERE — the anon/public key is safe to be public.
-const SUPABASE_URL = 'https://dtllehcwdjdhtnqymldw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bGxlaGN3ZGpkaHRucXltbGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0Mzg1ODUsImV4cCI6MjEwMTAxNDU4NX0.d3Mst9pPaZ2yg13KgLiCfou9naFFtClch7-NDTuTu1E';
+const SUPABASE_URL = 'https://tzrzriwurhnhykcaddbh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6cnpyaXd1cmhuaHlrY2FkZGJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ1ODg4MTEsImV4cCI6MjExMDE2NDgxMX0.z7sE9oSo7_8uMoW92AOiT7MwZxAyYAVhOzrAwT1rdzM';
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -1146,6 +1146,19 @@ function formatPktTime(rawTimeStr) {
   });
 }
 
+function formatPktClockTime(rawTime) {
+  if (!rawTime) return 'N/A';
+  const parsedDate = new Date(rawTime);
+  if (isNaN(parsedDate.getTime())) return 'N/A';
+
+  return parsedDate.toLocaleTimeString('en-GB', {
+    timeZone: 'Asia/Karachi',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Employee Applications Status (attendance card + HR applications table)
 // FIXED: this entire block used to be floating outside any function
@@ -1797,7 +1810,7 @@ async function openEmployeeCalendar(userId, employeeName, targetMonth = '2026-08
       label = 'Off (Sunday)';
       titleHover = `Date: ${dayStr}\nWeekly Off (Sunday)`;
     } else if (record) {
-      titleHover = `Date: ${dayStr}\nIn: ${record.in_time || 'N/A'}\nOut: ${record.out_time || 'N/A'}\nStatus: ${record.status.toUpperCase()}`;
+      titleHover = `Date: ${dayStr}\nIn: ${formatPktClockTime(record.in_time)}\nOut: ${formatPktClockTime(record.out_time)}\nStatus: ${record.status.toUpperCase()}`;
       if (record.status === 'present') {
         dotColor = '#34d399'; bgColor = 'rgba(52, 211, 153, 0.1)'; label = 'Present';
       } else if (record.status === 'late') {

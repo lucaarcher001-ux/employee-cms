@@ -1,6 +1,7 @@
 node_modules/
 .netlify/
 .env*
+dist/
 sync-worker/sync_state.json
 
 sync-worker/
