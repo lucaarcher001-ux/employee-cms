@@ -3099,6 +3099,34 @@ async function loadCandidateChat() {
   }
 }
 
+async function refreshCandidateChat() {
+  const candidateId = candidateChatId;
+  const messagesContainer = document.getElementById('candidate-chat-messages');
+  const refreshButton = document.getElementById('candidate-chat-refresh-btn');
+  if (!candidateId || !messagesContainer) return;
+
+  candidateChatLoadToken++;
+  candidateChatInitialLoadComplete = false;
+  candidateChatOldestCursor = null;
+  candidateChatHasOlder = false;
+  candidateChatOlderLoading = false;
+  updateCandidateChatLoadOlderButton();
+  messagesContainer.innerHTML = '<p class="candidate-chat-state">Refreshing chat history...</p>';
+  if (refreshButton) {
+    refreshButton.disabled = true;
+    refreshButton.textContent = 'Refreshing...';
+  }
+
+  try {
+    await loadCandidateChat();
+  } finally {
+    if (refreshButton) {
+      refreshButton.disabled = false;
+      refreshButton.textContent = 'Refresh';
+    }
+  }
+}
+
 async function sendCandidateChatReply(event) {
   event.preventDefault();
   if (!candidateChatId || !isRecruitmentUser()) {
