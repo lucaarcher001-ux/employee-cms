@@ -1189,6 +1189,18 @@ function formatPktClockTime(rawTime) {
   });
 }
 
+function getPktShiftDate(rawTime) {
+  const timestamp = new Date(rawTime).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+
+  const pktDate = new Date(timestamp + 5 * 60 * 60 * 1000);
+  if (pktDate.getUTCHours() < 10) {
+    pktDate.setUTCDate(pktDate.getUTCDate() - 1);
+  }
+
+  return `${pktDate.getUTCFullYear()}-${String(pktDate.getUTCMonth() + 1).padStart(2, '0')}-${String(pktDate.getUTCDate()).padStart(2, '0')}`;
+}
+
 // ---------------------------------------------------------------------------
 // Employee Applications Status (attendance card + HR applications table)
 // FIXED: this entire block used to be floating outside any function
@@ -1793,24 +1805,78 @@ async function openEmployeeCalendar(userId, employeeName, targetMonth = '2026-08
 
   document.getElementById('calendar-modal').style.display = 'flex';
 
-  const { data, error } = await supabaseClient.rpc('get_monthly_attendance_report', {
-    target_user_id: userId,
-    target_month: targetMonth
-  });
+  const [reportResponse, profileResponse] = await Promise.all([
+    supabaseClient.rpc('get_monthly_attendance_report', {
+      target_user_id: userId,
+      target_month: targetMonth
+    }),
+    supabaseClient
+      .from('profiles')
+      .select('zk_user_id')
+      .eq('id', userId)
+      .maybeSingle()
+  ]);
+  const { data, error } = reportResponse;
 
   if (error) {
     container.innerHTML = `<p style="grid-column: span 7; color:#ef4444;">Error: ${error.message}</p>`;
     return;
   }
 
-  container.innerHTML = '';
-
+  const [year, month] = targetMonth.split('-').map(Number);
   const recordsMap = {};
   if (data) {
     data.forEach(rec => { recordsMap[rec.shift_date] = rec; });
   }
 
-  const [year, month] = targetMonth.split('-').map(Number);
+  const rawPunchesByDate = {};
+  let rawPunchNotice = '';
+  const { data: profile, error: profileError } = profileResponse;
+
+  if (profileError) {
+    rawPunchNotice = `Could not load the employee's ZKBio mapping: ${profileError.message}`;
+  } else if (!profile?.zk_user_id) {
+    rawPunchNotice = 'No ZKBio employee ID is assigned to this profile, so synced punches cannot be matched.';
+  } else {
+    const monthStart = new Date(Date.UTC(year, month - 1, 1) - 5 * 60 * 60 * 1000).toISOString();
+    const monthEnd = new Date(Date.UTC(year, month, 1) + 5 * 60 * 60 * 1000).toISOString();
+    const { data: rawPunches, error: rawPunchError } = await supabaseClient
+      .from('raw_attendance_logs')
+      .select('punch_time, punch_type')
+      .eq('zk_user_id', String(profile.zk_user_id))
+      .gte('punch_time', monthStart)
+      .lt('punch_time', monthEnd)
+      .order('punch_time', { ascending: true });
+
+    if (rawPunchError) {
+      rawPunchNotice = `Could not load synced punches: ${rawPunchError.message}`;
+    } else {
+      if (!rawPunches || rawPunches.length === 0) {
+        rawPunchNotice = `No synced punches were found for this employee in ${targetMonth}. Confirm the ZKBio ID on their profile matches the device PIN and the worker uploaded the punches.`;
+      }
+
+      (rawPunches || []).forEach(punch => {
+        if (punch.punch_type !== 'IN' && punch.punch_type !== 'OUT') return;
+
+        const shiftDate = getPktShiftDate(punch.punch_time);
+        if (!shiftDate) return;
+
+        if (!rawPunchesByDate[shiftDate]) {
+          rawPunchesByDate[shiftDate] = { inTime: null, outTime: null };
+        }
+
+        if (punch.punch_type === 'IN' && !rawPunchesByDate[shiftDate].inTime) {
+          rawPunchesByDate[shiftDate].inTime = punch.punch_time;
+        } else if (punch.punch_type === 'OUT') {
+          rawPunchesByDate[shiftDate].outTime = punch.punch_time;
+        }
+      });
+    }
+  }
+
+  container.innerHTML = rawPunchNotice
+    ? `<p style="grid-column: span 7; color:#b45309;">${escapeHtml(rawPunchNotice)}</p>`
+    : '';
   const totalDays = new Date(year, month, 0).getDate();
 
   // Leading blank cells so day 1 lands under its real weekday.
@@ -1825,7 +1891,9 @@ async function openEmployeeCalendar(userId, employeeName, targetMonth = '2026-08
   for (let day = 1; day <= totalDays; day++) {
     const dayStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const record = recordsMap[dayStr];
+    const syncedPunch = rawPunchesByDate[dayStr];
     const isSunday = new Date(year, month - 1, day).getDay() === 0;
+    let showSyncedPunch = false;
 
     let bgColor = 'rgba(255, 255, 255, 0.02)';
     let dotColor = 'transparent';
@@ -1839,6 +1907,19 @@ async function openEmployeeCalendar(userId, employeeName, targetMonth = '2026-08
       bgColor = 'rgba(148, 163, 184, 0.08)';
       label = 'Off (Sunday)';
       titleHover = `Date: ${dayStr}\nWeekly Off (Sunday)`;
+    } else if (syncedPunch && (
+      !record || record.status === 'unannounced_lop' || record.status === 'missed_punch'
+    )) {
+      showSyncedPunch = true;
+      dotColor = '#38bdf8';
+      bgColor = 'rgba(56, 189, 248, 0.12)';
+      label = syncedPunch.inTime && !syncedPunch.outTime ? 'In Progress' : 'Punch Synced';
+      titleHover = [
+        `Date: ${dayStr}`,
+        `In: ${formatPktClockTime(syncedPunch.inTime)}`,
+        `Out: ${formatPktClockTime(syncedPunch.outTime)}`,
+        'Punch synced; attendance summary is pending processing.'
+      ].join('\n');
     } else if (record) {
       titleHover = `Date: ${dayStr}\nIn: ${formatPktClockTime(record.in_time)}\nOut: ${formatPktClockTime(record.out_time)}\nStatus: ${record.status.toUpperCase()}`;
       if (record.status === 'present') {
@@ -1855,7 +1936,7 @@ async function openEmployeeCalendar(userId, employeeName, targetMonth = '2026-08
     container.innerHTML += `
       <div class="calendar-day-box" style="background: ${bgColor};" title="${titleHover}">
         <span style="font-weight: 600; color: #f1f5f9;">${day}</span>
-        <span style="font-size: 0.65rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${isSunday ? label : (record ? label : 'Off')}</span>
+        <span style="font-size: 0.65rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${isSunday ? label : (record || showSyncedPunch ? label : 'Off')}</span>
         <div class="day-status-dot" style="background: ${dotColor};"></div>
       </div>
     `;
